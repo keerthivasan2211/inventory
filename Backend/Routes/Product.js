@@ -4,9 +4,13 @@ const axios = require('axios');
 const router = express.Router();
 
 // WooCommerce API credentials and URL
-const WC_API_URL = 'https://lightyellow-giraffe-133395.hostingersite.com/wp-json/wc/v3';
-const CONSUMER_KEY = 'ck_de273cb82f5e03be982192ff4920a4fa6e5983a4';
-const CONSUMER_SECRET = 'cs_dca614d53ee4f3d7ea94d93472794a07253f723c';
+// const WC_API_URL = 'https://darkviolet-sparrow-841938.hostingersite.com/wp-json/wc/v3/products';
+// const CONSUMER_KEY = 'ck_936c286d78cd626f51b194b49f0643f8fefc4583';
+// const CONSUMER_SECRET = 'cs_22a2bb44d946f6e286c3e20b6a956f998052bc60';
+
+const WC_API_URL = 'https://darkviolet-sparrow-841938.hostingersite.com/wp-json/wc/v3';
+const CONSUMER_KEY = 'ck_936c286d78cd626f51b194b49f0643f8fefc4583';
+const CONSUMER_SECRET = 'cs_22a2bb44d946f6e286c3e20b6a956f998052bc60';
 
 // Fetch all categories from WooCommerce
 async function fetchAllCategories() {

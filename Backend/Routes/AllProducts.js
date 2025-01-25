@@ -3,14 +3,18 @@ const axios = require('axios');
 
 const router = express.Router();
 
-// WooCommerce API credentials
-// const WC_API_URL = 'https://staging3.vaseegrahveda.ae/wp-json/wc/v3';
-// const CONSUMER_KEY = 'ck_c1e038ab6a2043e593159b1f82c88014da195542';
-// const CONSUMER_SECRET = 'cs_b4c7be0d12d0f354584dbf49b4f1dbae342e39f0';
 
-const WC_API_URL = 'https://lightyellow-giraffe-133395.hostingersite.com/wp-json/wc/v3';
-const CONSUMER_KEY = 'ck_de273cb82f5e03be982192ff4920a4fa6e5983a4';
-const CONSUMER_SECRET = 'cs_dca614d53ee4f3d7ea94d93472794a07253f723c';
+// const WC_API_URL = 'https://lightcyan-rook-900917.hostingersite.com/wp-json/wc/v3';
+// const CONSUMER_KEY = 'ck_ef3c13311f1d9cd849a174266110a8f1047d0ae1';
+// const CONSUMER_SECRET = 'cs_bb3124c24995857b791408ad4fee55cce2ce8dc2';
+
+const WC_API_URL = 'https://darkviolet-sparrow-841938.hostingersite.com/wp-json/wc/v3';
+const CONSUMER_KEY = 'ck_936c286d78cd626f51b194b49f0643f8fefc4583';
+const CONSUMER_SECRET = 'cs_22a2bb44d946f6e286c3e20b6a956f998052bc60';
+
+
+
+
 // Route to fetch all products
 router.get('/product/all', async (req, res) => {
     try {
