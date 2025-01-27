@@ -15,7 +15,9 @@
     "axios": "^1.7.7",
     "bull": "^4.16.3",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.21.0",
+    "mongoose": "^8.9.5",
     "nodemon": "^3.1.7",
     "react-router-dom": "^7.1.3"
   }

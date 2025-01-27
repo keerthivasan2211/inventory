@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const Product =require('../productModel')
+require('dotenv').config(); // Load environment variables 
 
 const router = express.Router();
 
@@ -8,9 +10,9 @@ const router = express.Router();
 // const CONSUMER_KEY = 'ck_936c286d78cd626f51b194b49f0643f8fefc4583';
 // const CONSUMER_SECRET = 'cs_22a2bb44d946f6e286c3e20b6a956f998052bc60';
 
-const WC_API_URL = 'https://darkviolet-sparrow-841938.hostingersite.com/wp-json/wc/v3';
-const CONSUMER_KEY = 'ck_936c286d78cd626f51b194b49f0643f8fefc4583';
-const CONSUMER_SECRET = 'cs_22a2bb44d946f6e286c3e20b6a956f998052bc60';
+const WC_API_URL = process.env.WC_API_URL;
+const CONSUMER_KEY = process.env.WC_CONSUMER_KEY;
+const CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET;
 
 // Fetch all categories from WooCommerce
 async function fetchAllCategories() {
@@ -119,15 +121,31 @@ router.get('/products/:productId', async (req, res) => {
 });
 
 // PUT request to update a specific product's stock quantity
+//   // Assuming the model is in the 'models' folder
+
 router.put('/products/:productId', async (req, res) => {
     const { productId } = req.params;
     const { stock_quantity } = req.body;  // Expecting stock_quantity in request body
 
     try {
-        // Prepare the update object
-        let updateData = {};
+        // Step 1: Verify if the product exists in MongoDB
+        const productInDb = await Product.findOne({ id: productId });
 
-        // Check if stock_quantity is provided in the request
+
+        if (!productInDb) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found in the database.',
+            });
+        }
+
+        // Step 2: Fetch the current product details from WooCommerce
+        const currentProductResponse = await axios.get(
+            `${WC_API_URL}/products/${productId}?consumer_key=${CONSUMER_KEY}&consumer_secret=${CONSUMER_SECRET}`
+        );
+        console.log(currentProductResponse)
+
+        // Step 3: If stock_quantity is provided, validate it
         if (stock_quantity === null || typeof stock_quantity === 'undefined') {
             return res.status(400).json({
                 success: false,
@@ -135,35 +153,27 @@ router.put('/products/:productId', async (req, res) => {
             });
         }
 
-        // Fetch the current product from the database to check current stock_quantity
-        const currentProductResponse = await axios.get(`${WC_API_URL}/products/${productId}?consumer_key=${CONSUMER_KEY}&consumer_secret=${CONSUMER_SECRET}`);
-        const currentStockQuantity = currentProductResponse.data.stock_quantity;
+        // Step 4: Prepare the update object for WooCommerce
+        let updateData = {
+            stock_quantity: stock_quantity,  // Always update to the new value
+            in_stock: stock_quantity > 0,    // Set in_stock true if stock_quantity > 0
+            manage_stock: true,              // Ensure stock management is enabled
+        };
 
-        console.log('Current stock quantity:', currentStockQuantity); // Log current stock quantity
-
-        // If the current stock_quantity is null, use the new stock_quantity
-        updateData.stock_quantity = stock_quantity; // Always update to the new value
-
-        // Set in_stock based on the new stock_quantity
-        updateData.in_stock = updateData.stock_quantity > 0; // Set in_stock true if stock_quantity > 0
-
-        // Enable stock management
-        updateData.manage_stock = true;  // Ensure stock management is enabled
-
-        // Make the API call to update the product in WooCommerce
+        // Step 5: Update product in WooCommerce
         const response = await axios.put(
             `${WC_API_URL}/products/${productId}?consumer_key=${CONSUMER_KEY}&consumer_secret=${CONSUMER_SECRET}`,
             updateData
         );
 
-        console.log('Update response:', response.data); // Log the update response
+        console.log('Update response from WooCommerce:', response.data);  // Log the update response
 
-        // Respond with the updated product information
+        // Step 6: Respond with the updated product information
         res.status(200).json({
             success: true,
             product: response.data,
-            in_stock: updateData.in_stock, // Include the updated in_stock status in the response
-            manage_stock: updateData.manage_stock, // Include the stock management status
+            in_stock: updateData.in_stock,  // Include the updated in_stock status
+            manage_stock: updateData.manage_stock,  // Include the stock management status
         });
     } catch (error) {
         console.error('Error updating product:', error.response ? error.response.data : error);
@@ -173,5 +183,67 @@ router.put('/products/:productId', async (req, res) => {
         });
     }
 });
+
+
+
+// Webhook to handle order status updates
+router.post('/webhook/orderprocess', async (req, res) => {
+    const webhookData = req.body;
+    console.log(webhookData)
+
+    try {
+        // Check if the order status is "completed"
+        if (webhookData.status === 'completed') {
+            console.log('Order completed webhook received:', webhookData);
+
+            // Extract the line items (products) from the order
+            const lineItems = webhookData.line_items || [];
+            
+            // Iterate over each product in the order
+            for (const item of lineItems) {
+                const productId = item.product_id; // WooCommerce product ID
+                const quantity = item.quantity; // Quantity ordered
+
+                console.log(`Reducing stock for Product ID: ${productId}, Quantity: ${quantity}`);
+
+                // Fetch the current stock quantity of the product
+                const currentProductResponse = await axios.get(`${WC_API_URL}/products/${productId}?consumer_key=${CONSUMER_KEY}&consumer_secret=${CONSUMER_SECRET}`);
+                const currentStockQuantity = currentProductResponse.data.stock_quantity;
+
+                if (currentStockQuantity === null) {
+                    console.log(`Stock quantity is not managed for Product ID: ${productId}`);
+                    continue; // Skip products without stock management
+                }
+
+                // Calculate the new stock quantity
+                const newStockQuantity = currentStockQuantity - quantity;
+
+                // Update the product's stock quantity
+                const updateResponse = await axios.put(
+                    `${WC_API_URL}/products/${productId}?consumer_key=${CONSUMER_KEY}&consumer_secret=${CONSUMER_SECRET}`,
+                    {
+                        stock_quantity: newStockQuantity > 0 ? newStockQuantity : 0, // Ensure stock doesn't go below 0
+                        in_stock: newStockQuantity > 0, // Set in_stock based on new stock quantity
+                    }
+                );
+
+                console.log(`Updated Product ID: ${productId}, New Stock Quantity: ${newStockQuantity}`);
+            }
+        }
+
+        // Respond to WooCommerce that the webhook was received successfully
+        res.status(200).json({
+            success: true,
+            message: 'Webhook processed successfully',
+        });
+    } catch (error) {
+        console.error('Error processing webhook:', error.response ? error.response.data : error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process webhook',
+        });
+    }
+});
+
 
 module.exports = router;

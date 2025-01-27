@@ -17,6 +17,7 @@ const updateProduct = async (req, res) => {
         const response = await axios.put(
             `${WC_API_URL}/${productId}?consumer_key=${CONSUMER_KEY}&consumer_secret=${CONSUMER_SECRET}`,productData
         );
+        
 
         res.status(200).json({
             success: true,
